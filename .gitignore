@@ -1,0 +1,5 @@
+lambda_function.zip
+response.json
+zip.exe
+*.pyc
+__pycache__/

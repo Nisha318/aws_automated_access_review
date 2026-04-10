@@ -220,71 +220,42 @@ Total findings: {len(findings)}
 
 def invoke_claude_model(bedrock, prompt):
     """
-    Invoke the Amazon Claude model via Bedrock API.
-
-    This function handles the API communication with Amazon Bedrock,
-    configuring the request parameters and processing the response.
-
-    Args:
-        bedrock: Initialized Bedrock client with appropriate permissions
-        prompt: The structured prompt containing security findings
-
-    Returns:
-        dict: The raw model's response as a Python dictionary
-
-    Note:
-        This function configures specific parameters for the Claude model:
-        - Temperature: Controls randomness (0.7 balances creativity and consistency)
-        - Max tokens: Limits response length (4096 provides detailed but concise analysis)
-        - Top-p: Controls diversity of responses (0.9 is a balanced setting)
+    Invoke Claude 3 via Bedrock converse API.
     """
-    # Step 1: Select model and set parameters
-    # Using Claude v2 for comprehensive text generation capabilities
-    model_id = "anthropic.claude-v2"  # Amazon Bedrock model identifier
+    model_id = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
-    # Step 2: Construct the complete prompt with instructions
-    # The prompt follows Claude's required Human/Assistant format
-    # and includes specific instructions for security report generation
-    request_body = {
-        "prompt": (
-            # Begin with Claude's expected format
-            "\n\nHuman: You are a cybersecurity expert analyzing AWS security findings. "
-            "Generate a concise, professional security report based on the following "
-            f"findings:\n\n{prompt}\n\n"
-            # Specific instructions for report structure
-            "Your report should include:\n"
-            "1. An executive summary of the security posture\n"
-            "2. Analysis of the most critical findings\n"
-            "3. Clear, actionable recommendations\n"
-            "4. Compliance implications\n\n"
-            # Style guidance for the report
-            "Format the report with clear headings and concise language suitable for both "
-            "technical and non-technical stakeholders.\n\n"
-            # Claude's expected assistant prefix
-            "Assistant: I'll analyze the findings and provide a comprehensive security "
-            "report.\n\n"
-        ),
-        # Model configuration parameters
-        "max_tokens_to_sample": 4096,  # Maximum response length (roughly 3000 words)
-        "temperature": 0.7,  # Balances creativity and consistency
-        "top_p": 0.9,  # Controls diversity of word selection
-    }
-
-    # Step 3: Call the Bedrock API
     print(f"Calling Bedrock API with model: {model_id}")
-    response = bedrock.invoke_model(
-        modelId=model_id,  # Which model to use
-        contentType="application/json",  # Format of our request
-        accept="application/json",  # Format we want for response
-        body=json.dumps(request_body),  # Convert request to JSON string
+    response = bedrock.converse(
+        modelId=model_id,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "text": (
+                            "You are a cybersecurity expert analyzing AWS security findings. "
+                            "Generate a concise, professional security report based on the following "
+                            f"findings:\n\n{prompt}\n\n"
+                            "Your report should include:\n"
+                            "1. An executive summary of the security posture\n"
+                            "2. Analysis of the most critical findings\n"
+                            "3. Clear, actionable recommendations\n"
+                            "4. Compliance implications\n\n"
+                            "Format the report with clear headings and concise language suitable "
+                            "for both technical and non-technical stakeholders."
+                        )
+                    }
+                ]
+            }
+        ],
+        inferenceConfig={
+            "maxTokens": 4096,
+            "temperature": 0.7,
+        }
     )
 
-    # Step 4: Process the response
-    # The response body is a stream that needs to be read and parsed
-    response_body = json.loads(response.get("body").read())
     print("Successfully received response from Bedrock")
-
-    return response_body
+    return response
 
 
 def extract_narrative_claude(response):
@@ -308,7 +279,7 @@ def extract_narrative_claude(response):
     try:
         # For Claude model, the generated text is in the "completion" field
         # We strip any extra whitespace to ensure clean formatting
-        narrative = response.get("completion", "")
+        narrative = response.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "")
 
         # Apply any additional formatting or post-processing here if needed
         # For example, we might want to add a title, fix formatting issues, etc.
